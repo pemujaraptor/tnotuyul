@@ -4,7 +4,7 @@
 Teneo bot is a simple tool designed to automate the node interaction.
 
 ## Features
-- **Automated Account Creation**: Register multiple accounts using a list of email addresses.
+- **Automated node interaction**
 
 ## Prerequisites
 - [Node.js](https://nodejs.org/) (version 12 or higher)
@@ -41,8 +41,8 @@ Modify the `account.js` file to set your account parameters:
 	node index.js
 	```
 
-License
+## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
-Note
+## Note
 This script only for testing purpose, using this script might violates ToS and may get your account permanently banned.

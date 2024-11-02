@@ -1,4 +1,5 @@
 const axios = require('axios');
+const chalk = require('chalk');
 const WebSocket = require('ws');
 const HttpsProxyAgent = require('https-proxy-agent').HttpsProxyAgent;
 const readline = require('readline');
@@ -25,24 +26,26 @@ const authorization = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlra25uZ3JneHV4Z2pocGxicGV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU0MzgxNTAsImV4cCI6MjA0MTAxNDE1MH0.DRAvf8nH1ojnJBc3rD_Nw6t1AV8X_g6gmY_HByG2Mag";
 
 function displayHeader() {
-  console.log("");
-  console.log("================= Teneo Bot =================");
-  console.log("========= github.com/recitativonika =========");
-  console.log("================= --------- =================");
-  console.log("");
+console.log("");
+console.log(chalk.yellow(" ============================================"));
+console.log(chalk.yellow("|                 Teneo Bot                  |"));
+console.log(chalk.yellow("|         github.com/recitativonika          |"));
+console.log(chalk.yellow(" ============================================"));
+console.log("");
+console.log(chalk.cyan(`_____________________________________________`));
 }
 
 function displayAccountData(index) {
-  console.log(`================= Account ${index + 1} =================`);
-  console.log(`Email: ${accounts[index].email}`);
+  console.log(chalk.cyan(`================= Account ${index + 1} =================`));
+  console.log(chalk.whiteBright(`Email: ${accounts[index].email}`));
   console.log(`User ID: ${userIds[index]}`);
-  console.log(`Points Total: ${pointsTotals[index]}`);
-  console.log(`Message: ${messages[index]}`);
-  const proxy = proxies[index % proxies.length];
-  if (useProxy) {
-    console.log(`Proxy: ${proxy.host}:${proxy.port} (User: ${proxy.username})`);
-  }
-  console.log(`=============================================`);
+  console.log(chalk.green(`Points Total: ${pointsTotals[index]}`));
+  console.log(chalk.whiteBright(`Message: ${messages[index]}`));
+	const proxy = proxies[index % proxies.length];
+	if (useProxy) {
+	console.log(chalk.hex('#FFA500')(`Proxy: ${proxy.host}:${proxy.port} (User: ${proxy.username})`));
+}
+  console.log(chalk.cyan(`_____________________________________________`));
 }
 
 function logAllAccounts() {

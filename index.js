@@ -80,26 +80,25 @@ async function connectWebSocket(index) {
     startCountdownAndPoints(index);
   };
 
- sockets[index].onmessage = async (event) => {
-  const data = JSON.parse(event.data);
-  if (data.pointsTotal !== undefined && data.pointsToday !== undefined) {
-    lastUpdateds[index] = new Date().toISOString();
-    pointsTotals[index] = data.pointsTotal;
-    pointsToday[index] = data.pointsToday;
-    messages[index] = data.message;
+  sockets[index].onmessage = async (event) => {
+    const data = JSON.parse(event.data);
+    if (data.pointsTotal !== undefined && data.pointsToday !== undefined) {
+      lastUpdateds[index] = new Date().toISOString();
+      pointsTotals[index] = data.pointsTotal;
+      pointsToday[index] = data.pointsToday;
+      messages[index] = data.message;
 
-    logAllAccounts();
-  }
+      logAllAccounts();
+    }
 
-  if (data.message === "Pulse from server") {
-    console.log(`Pulse from server received for Account ${index + 1}. Restarting WebSocket connection in 10 seconds...`);
-    setTimeout(() => {
-      disconnectWebSocket(index);
-      connectWebSocket(index);
-    }, 10000);
-  }
-};
-
+    if (data.message === "Pulse from server") {
+      console.log(`Pulse from server received for Account ${index + 1}. Restarting WebSocket connection in 10 seconds...`);
+      setTimeout(() => {
+        disconnectWebSocket(index);
+        connectWebSocket(index);
+      }, 10000);
+    }
+  };
 
   sockets[index].onclose = () => {
     sockets[index] = null;
@@ -126,29 +125,19 @@ function startPinging(index) {
     if (sockets[index] && sockets[index].readyState === WebSocket.OPEN) {
       const proxy = proxies[index % proxies.length];
       const agent = useProxy ? new HttpsProxyAgent(`http://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`) : null;
-      
+
       sockets[index].send(JSON.stringify({ type: "PING" }), { agent });
       logAllAccounts();
     }
   }, 10000);
 }
 
-
 function stopPinging(index) {
-  if ( pingIntervals[index]) {
+  if (pingIntervals[index]) {
     clearInterval(pingIntervals[index]);
     pingIntervals[index] = null;
   }
 }
-
-process.on('SIGINT', () => {
-  console.log('Stopping...');
-  for (let i = 0; i < accounts.length; i++) {
-    stopPinging(i);
-    disconnectWebSocket(i);
-  }
-  process.exit(0);
-});
 
 function startCountdownAndPoints(index) {
   clearInterval(countdownIntervals[index]);
@@ -184,6 +173,14 @@ async function updateCountdownAndPoints(index) {
     } else {
       countdowns[index] = "Calculating...";
       potentialPoints[index] = 25;
+
+      // Restart WebSocket if status is "Calculating..." for more than 1 minute
+      const timeSinceLastUpdate = now - new Date(lastUpdateds[index]);
+      if (timeSinceLastUpdate > 60000) {
+        console.log(`Account ${index + 1} has been "Calculating..." for more than 1 minute. Restarting WebSocket.`);
+        disconnectWebSocket(index);
+        connectWebSocket(index);
+      }
     }
   } else {
     countdowns[index] = "Calculating...";

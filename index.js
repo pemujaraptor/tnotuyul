@@ -1,7 +1,7 @@
 const axios = require('axios');
 const chalk = require('chalk');
 const WebSocket = require('ws');
-const HttpsProxyAgent = require('https-proxy-agent').HttpsProxyAgent;
+const { HttpsProxyAgent } = require('https-proxy-agent');
 const readline = require('readline');
 const accounts = require('./account.js');
 const proxies = require('./proxy.js');
@@ -18,6 +18,7 @@ let countdownIntervals = [];
 let potentialPoints = [];
 let countdowns = [];
 let pointsTotals = [];
+let pointsToday = [];
 let lastUpdateds = [];
 let messages = [];
 let userIds = [];
@@ -26,13 +27,13 @@ const authorization = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlra25uZ3JneHV4Z2pocGxicGV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU0MzgxNTAsImV4cCI6MjA0MTAxNDE1MH0.DRAvf8nH1ojnJBc3rD_Nw6t1AV8X_g6gmY_HByG2Mag";
 
 function displayHeader() {
-console.log("");
-console.log(chalk.yellow(" ============================================"));
-console.log(chalk.yellow("|                 Teneo Bot                  |"));
-console.log(chalk.yellow("|         github.com/recitativonika          |"));
-console.log(chalk.yellow(" ============================================"));
-console.log("");
-console.log(chalk.cyan(`_____________________________________________`));
+  console.log("");
+  console.log(chalk.yellow(" ============================================"));
+  console.log(chalk.yellow("|                 Teneo Bot                  |"));
+  console.log(chalk.yellow("|         github.com/recitativonika          |"));
+  console.log(chalk.yellow(" ============================================"));
+  console.log("");
+  console.log(chalk.cyan(`_____________________________________________`));
 }
 
 function displayAccountData(index) {
@@ -40,11 +41,12 @@ function displayAccountData(index) {
   console.log(chalk.whiteBright(`Email: ${accounts[index].email}`));
   console.log(`User ID: ${userIds[index]}`);
   console.log(chalk.green(`Points Total: ${pointsTotals[index]}`));
+  console.log(chalk.green(`Points Today: ${pointsToday[index]}`));
   console.log(chalk.whiteBright(`Message: ${messages[index]}`));
-	const proxy = proxies[index % proxies.length];
-	if (useProxy) {
-	console.log(chalk.hex('#FFA500')(`Proxy: ${proxy.host}:${proxy.port} (User: ${proxy.username})`));
-}
+  const proxy = proxies[index % proxies.length];
+  if (useProxy) {
+    console.log(chalk.hex('#FFA500')(`Proxy: ${proxy.host}:${proxy.port} (User: ${proxy.username})`));
+  }
   console.log(chalk.cyan(`_____________________________________________`));
 }
 
@@ -66,7 +68,10 @@ async function connectWebSocket(index) {
   const url = "wss://secure.ws.teneo.pro";
   const wsUrl = `${url}/websocket?userId=${encodeURIComponent(userIds[index])}&version=${encodeURIComponent(version)}`;
 
-  sockets[index] = new WebSocket(wsUrl);
+  const proxy = proxies[index % proxies.length];
+  const agent = useProxy ? new HttpsProxyAgent(`http://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`) : null;
+
+  sockets[index] = new WebSocket(wsUrl, { agent });
 
   sockets[index].onopen = async () => {
     lastUpdateds[index] = new Date().toISOString();
@@ -75,16 +80,26 @@ async function connectWebSocket(index) {
     startCountdownAndPoints(index);
   };
 
-  sockets[index].onmessage = async (event) => {
-    const data = JSON.parse(event.data);
-    if (data.pointsTotal !== undefined && data.pointsToday !== undefined) {
-      lastUpdateds[index] = new Date().toISOString();
-      pointsTotals[index] = data.pointsTotal;
-      messages[index] = data.message;
+ sockets[index].onmessage = async (event) => {
+  const data = JSON.parse(event.data);
+  if (data.pointsTotal !== undefined && data.pointsToday !== undefined) {
+    lastUpdateds[index] = new Date().toISOString();
+    pointsTotals[index] = data.pointsTotal;
+    pointsToday[index] = data.pointsToday;
+    messages[index] = data.message;
 
-      logAllAccounts();
-    }
-  };
+    logAllAccounts();
+  }
+
+  if (data.message === "Pulse from server") {
+    console.log(`Pulse from server received for Account ${index + 1}. Restarting WebSocket connection in 10 seconds...`);
+    setTimeout(() => {
+      disconnectWebSocket(index);
+      connectWebSocket(index);
+    }, 10000);
+  }
+};
+
 
   sockets[index].onclose = () => {
     sockets[index] = null;
@@ -109,14 +124,18 @@ function startPinging(index) {
   stopPinging(index);
   pingIntervals[index] = setInterval(async () => {
     if (sockets[index] && sockets[index].readyState === WebSocket.OPEN) {
-      sockets[index].send(JSON.stringify({ type: "PING" }));
+      const proxy = proxies[index % proxies.length];
+      const agent = useProxy ? new HttpsProxyAgent(`http://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`) : null;
+      
+      sockets[index].send(JSON.stringify({ type: "PING" }), { agent });
       logAllAccounts();
     }
   }, 10000);
 }
 
+
 function stopPinging(index) {
-  if (pingIntervals[index]) {
+  if ( pingIntervals[index]) {
     clearInterval(pingIntervals[index]);
     pingIntervals[index] = null;
   }
@@ -218,6 +237,7 @@ for (let i = 0; i < accounts.length; i++) {
   potentialPoints[i] = 0;
   countdowns[i] = "Calculating...";
   pointsTotals[i] = 0;
+  pointsToday[i] = 0;
   lastUpdateds[i] = null;
   messages[i] = '';
   userIds[i] = null;

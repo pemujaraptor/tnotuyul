@@ -1,2 +1,2 @@
 // config.js
-export const useProxy = false; // Add this line to toggle proxy usage (true if want to use proxy, false if not)
+export const useProxy = false; // (set true if want to use proxy, false if not)

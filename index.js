@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import readline from 'readline';
 import accounts from './account.js';
 import proxies from './proxy.js';
-import { useProxy } from './config.js'; // Import useProxy setting
+import { useProxy } from './config.js';
 
 const rl = readline.createInterface({
   input: process.stdin,

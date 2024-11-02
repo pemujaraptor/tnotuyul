@@ -41,14 +41,11 @@ Teneo bot is a simple tool designed to automate the node interaction.
 	},
 	// Add more accounts as needed
 	];
-
-
 	```
 	Modify the `config.js` file if you want to use proxy or not, default is false (not use proxy)
 	```
 	// config.js
 	export const useProxy = false; // Add this line to toggle proxy usage (true if want to use proxy, false if not)
-
 	```
 	Modify and set the `proxy.js` file if you want to use proxy
 	```
@@ -67,7 +64,6 @@ Teneo bot is a simple tool designed to automate the node interaction.
 	},
 	// Add more proxies as needed
 	];
-
 	```
 3. Run the script:
 	```bash

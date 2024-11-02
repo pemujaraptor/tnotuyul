@@ -1,11 +1,10 @@
-import axios from 'axios';
-import WebSocket from 'ws';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import chalk from 'chalk';
-import readline from 'readline';
-import accounts from './account.js';
-import proxies from './proxy.js';
-import { useProxy } from './config.js';
+const axios = require('axios');
+const WebSocket = require('ws');
+const HttpsProxyAgent = require('https-proxy-agent').HttpsProxyAgent;
+const readline = require('readline');
+const accounts = require('./account.js');
+const proxies = require('./proxy.js');
+const { useProxy } = require('./config.js');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -27,23 +26,23 @@ const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 function displayHeader() {
   console.log("");
-  console.log(chalk.yellow("================= Teneo Bot ================="));
-  console.log(chalk.yellow("========= github.com/recitativonika ========="));
-  console.log(chalk.yellow("================= --------- ================="));
+  console.log("================= Teneo Bot =================");
+  console.log("========= github.com/recitativonika =========");
+  console.log("================= --------- =================");
   console.log("");
 }
 
 function displayAccountData(index) {
-  console.log(chalk.cyan(`============== Account ${index + 1} ==============`));
+  console.log(`================= Account ${index + 1} =================`);
   console.log(`Email: ${accounts[index].email}`);
   console.log(`User ID: ${userIds[index]}`);
-  console.log(chalk.green(`Points Total: ${pointsTotals[index]}`));
+  console.log(`Points Total: ${pointsTotals[index]}`);
   console.log(`Message: ${messages[index]}`);
   const proxy = proxies[index % proxies.length];
   if (useProxy) {
     console.log(`Proxy: ${proxy.host}:${proxy.port} (User: ${proxy.username})`);
   }
-  console.log(chalk.cyan(`==================================================`));
+  console.log(`=============================================`);
 }
 
 function logAllAccounts() {

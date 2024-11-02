@@ -26,17 +26,50 @@ Teneo bot is a simple tool designed to automate the node interaction.
 
 ## Usage
 
-1. Sset the `account.js` before running the script.
-2. Configuration
-Modify the `account.js` file to set your account parameters:
+1. Sset the `account.js`, `config.js` and `proxy.js` before running the script. Below how to setup this fie.
+2. Configuration:
+	Modify the `account.js` file to set your account parameters
 	```
-	module.exports = {
-	email: 'email@example.com', // Replace with your email
-	password: 'password'          // Replace with your password
-	};
+	module.exports = [
+	{
+		email: "account1@example.com",
+		password: "password1"
+	},
+	{
+		email: "account2@example.com",
+		password: "password2"
+	},
+	// Add more accounts as needed
+	];
+
 
 	```
-3. Run the account creator script:
+	Modify the `config.js` file if you want to use proxy or not, default is false (not use proxy)
+	```
+	// config.js
+	export const useProxy = false; // Add this line to toggle proxy usage (true if want to use proxy, false if not)
+
+	```
+	Modify and set the `proxy.js` file if you want to use proxy
+	```
+	module.exports = [
+	{
+		host: "proxy1.example.com",
+		port: 8080,
+		username: "proxyuser1",  // Include these if your proxy requires authentication, delete this part if you dont need auth in your proxy
+		password: "proxypass1" // Include these if your proxy requires authentication, delete this part if you dont need auth in your proxy
+	},
+	{
+		host: "proxy2.example.com",
+		port: 8080,
+		username: "proxyuser2",
+		password: "proxypass2"
+	},
+	// Add more proxies as needed
+	];
+
+	```
+3. Run the script:
 	```bash
 	node index.js
 	```

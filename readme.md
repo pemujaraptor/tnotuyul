@@ -45,7 +45,7 @@ Teneo bot is a simple tool designed to automate the node interaction.
 	Modify the `config.js` file if you want to use proxy or not, default is false (not use proxy)
 	```
 	// config.js
-	export const useProxy = false; // Add this line to toggle proxy usage (true if want to use proxy, false if not)
+	export const useProxy = false; // (set true if want to use proxy, false if not)
 	```
 	Modify and set the `proxy.js` file if you want to use proxy
 	```
@@ -75,3 +75,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Note
 This script only for testing purpose, using this script might violates ToS and may get your account permanently banned.
+
+Extension link : https://chromewebstore.google.com/detail/teneo-community-node/emcclcoaglgcpoognfiggmhnhgabppkm
+
+My reff code if you want to use :) : 
+```bash
+03WkM
+```

@@ -92,10 +92,9 @@ async function connectWebSocket(index) {
   }
 
   if (data.message === "Pulse from server") {
-    console.log(`Pulse from server received for Account ${index + 1}. Restarting WebSocket connection in 10 seconds...`);
+    console.log(`Pulse from server received for Account ${index + 1}. Start pinging...`);
     setTimeout(() => {
-      disconnectWebSocket(index);
-      connectWebSocket(index);
+      startPinging(index)
     }, 10000);
   }
 };
@@ -104,7 +103,7 @@ async function connectWebSocket(index) {
   sockets[index].onclose = () => {
     sockets[index] = null;
     console.log(`Account ${index + 1} Disconnected`);
-    stopPinging(index);
+    restartAccountProcess(index);
   };
 
   sockets[index].onerror = (error) => {
@@ -116,12 +115,11 @@ function disconnectWebSocket(index) {
   if (sockets[index]) {
     sockets[index].close();
     sockets[index] = null;
-    stopPinging(index);
+    restartAccountProcess(index);
   }
 }
 
 function startPinging(index) {
-  stopPinging(index);
   pingIntervals[index] = setInterval(async () => {
     if (sockets[index] && sockets[index].readyState === WebSocket.OPEN) {
       const proxy = proxies[index % proxies.length];
@@ -157,10 +155,27 @@ function startCountdownAndPoints(index) {
 }
 
 async function updateCountdownAndPoints(index) {
+  const restartThreshold = 60000;
+  const now = new Date();
+
+  if (!lastUpdateds[index]) {
+    lastUpdateds[index] = {};
+  }
+
+  if (countdowns[index] === "Calculating...") {
+    const lastCalculatingTime = lastUpdateds[index].calculatingTime || now;
+    const calculatingDuration = now.getTime() - lastCalculatingTime.getTime();
+
+    if (calculatingDuration > restartThreshold) {
+
+      restartAccountProcess(index);
+      return;
+    }
+  }
+
   if (lastUpdateds[index]) {
     const nextHeartbeat = new Date(lastUpdateds[index]);
     nextHeartbeat.setMinutes(nextHeartbeat.getMinutes() + 15);
-    const now = new Date();
     const diff = nextHeartbeat.getTime() - now.getTime();
 
     if (diff > 0) {
@@ -184,13 +199,23 @@ async function updateCountdownAndPoints(index) {
     } else {
       countdowns[index] = "Calculating...";
       potentialPoints[index] = 25;
+
+      lastUpdateds[index].calculatingTime = now;
     }
   } else {
     countdowns[index] = "Calculating...";
     potentialPoints[index] = 0;
+
+    lastUpdateds[index].calculatingTime = now;
   }
 
   logAllAccounts();
+}
+
+function restartAccountProcess(index) {
+  disconnectWebSocket(index);
+  connectWebSocket(index);
+  console.log(`WebSocket restarted for index: ${index}`);
 }
 
 async function getUserId(index) {

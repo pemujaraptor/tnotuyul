@@ -26,7 +26,7 @@ Teneo bot is a simple tool designed to automate the node interaction.
 
 ## Usage
 
-1. Sset the `account.js`, `config.js` and `proxy.js` before running the script. Below how to setup this fie.
+1. Set the `account.js`, `config.js` and `proxy.js` before running the script. Below how to setup this fie.
 2. Configuration:
 	Modify the `account.js` file to set your account parameters
 	```

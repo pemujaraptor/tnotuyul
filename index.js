@@ -175,8 +175,8 @@ async function updateCountdownAndPoints(index) {
       potentialPoints[index] = 25;
 
       const timeSinceLastUpdate = now - new Date(lastUpdateds[index]);
-      if (timeSinceLastUpdate > 60000) {
-        console.log(`Account ${index + 1} has been "Calculating..." for more than 1 minute. Restarting WebSocket.`);
+      if (timeSinceLastUpdate > 300000) {
+        console.log(`Account ${index + 1} has been "Calculating..." for more than 5 minute. Restarting WebSocket.`);
         disconnectWebSocket(index);
         connectWebSocket(index);
       }

@@ -197,13 +197,13 @@ async function updateCountdownAndPoints(index) {
 
       potentialPoints[index] = newPoints;
     } else {
-      countdowns[index] = "Calculating...";
+      countdowns[index] = "Calculating, it might take a minute before starting...";
       potentialPoints[index] = 25;
 
       lastUpdateds[index].calculatingTime = now;
     }
   } else {
-    countdowns[index] = "Calculating...";
+    countdowns[index] = "Calculating, it might take a minute before starting...";
     potentialPoints[index] = 0;
 
     lastUpdateds[index].calculatingTime = now;

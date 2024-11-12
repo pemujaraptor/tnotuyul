@@ -80,58 +80,60 @@ async function connectWebSocket(index) {
     startCountdownAndPoints(index);
   };
 
-  sockets[index].onmessage = async (event) => {
-    const data = JSON.parse(event.data);
-    if (data.pointsTotal !== undefined && data.pointsToday !== undefined) {
-      lastUpdateds[index] = new Date().toISOString();
-      pointsTotals[index] = data.pointsTotal;
-      pointsToday[index] = data.pointsToday;
-      messages[index] = data.message;
+ sockets[index].onmessage = async (event) => {
+  const data = JSON.parse(event.data);
+  if (data.pointsTotal !== undefined && data.pointsToday !== undefined) {
+    lastUpdateds[index] = new Date().toISOString();
+    pointsTotals[index] = data.pointsTotal;
+    pointsToday[index] = data.pointsToday;
+    messages[index] = data.message;
 
-      logAllAccounts();
-    }
+    logAllAccounts();
+  }
 
-    if (data.message === "Pulse from server") {
-      console.log(`Pulse from server received for Account ${index + 1}. Start pinging...`);
-      setTimeout(() => {
-        startPinging(index);
-      }, 10000);
-    }
-  };
+  if (data.message === "Pulse from server") {
+    console.log(`Pulse from server received for Account ${index + 1}. Start pinging...`);
+    setTimeout(() => {
+      startPinging(index)
+    }, 10000);
+  }
+};
+
 
   sockets[index].onclose = () => {
-    stopPinging(index);
     sockets[index] = null;
     console.log(`Account ${index + 1} Disconnected`);
     restartAccountProcess(index);
   };
 
   sockets[index].onerror = (error) => {
-    stopPinging(index);
-    sockets[index] = null;
     console.error(`WebSocket error for Account ${index + 1}:`, error);
-    restartAccountProcess(index);
   };
 }
 
 function disconnectWebSocket(index) {
   if (sockets[index]) {
-    stopPinging(index);
     sockets[index].close();
     sockets[index] = null;
+    restartAccountProcess(index);
   }
 }
+
 function startPinging(index) {
-  pingIntervals[index] = setInterval(() => {
+  pingIntervals[index] = setInterval(async () => {
     if (sockets[index] && sockets[index].readyState === WebSocket.OPEN) {
-      sockets[index].send(JSON.stringify({ type: "PING" }));
+      const proxy = proxies[index % proxies.length];
+      const agent = useProxy ? new HttpsProxyAgent(`http://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`) : null;
+      
+      sockets[index].send(JSON.stringify({ type: "PING" }), { agent });
       logAllAccounts();
     }
   }, 10000);
 }
 
+
 function stopPinging(index) {
-  if (pingIntervals[index]) {
+  if ( pingIntervals[index]) {
     clearInterval(pingIntervals[index]);
     pingIntervals[index] = null;
   }
@@ -165,6 +167,7 @@ async function updateCountdownAndPoints(index) {
     const calculatingDuration = now.getTime() - lastCalculatingTime.getTime();
 
     if (calculatingDuration > restartThreshold) {
+
       restartAccountProcess(index);
       return;
     }
@@ -264,4 +267,4 @@ for (let i = 0; i < accounts.length; i++) {
   messages[i] = '';
   userIds[i] = null;
   getUserId(i);
-  }
+}

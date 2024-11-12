@@ -70,7 +70,7 @@ Teneo bot is a simple tool designed to automate the node interaction.
 	```
 3. Run the script:
 	```bash
-	node index.js
+	node index-old.js
 	```
 
 ## License

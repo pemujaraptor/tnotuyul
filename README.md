@@ -30,7 +30,7 @@ Teneo bot is a simple tool designed to automate the node interaction.
 2. Configuration:
 	Modify the `account.txt` file to set your account parameters
 	```
-	  email1:password
+    email1:password
     email2:password
     email3:password
 	```

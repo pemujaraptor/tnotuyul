@@ -1,5 +1,5 @@
 # Teneo Bot
-
+[Click here for old readme](https://github.com/recitativonika/teneo-bot/blob/main/readme-old.md)
 ## Description
 Teneo bot is a simple tool designed to automate the node interaction.
 

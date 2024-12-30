@@ -51,9 +51,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Note
 This script only for testing purpose, using this script might violates ToS and may get your account permanently banned.
 
-Extension link : https://chromewebstore.google.com/detail/teneo-community-node/emcclcoaglgcpoognfiggmhnhgabppkm
+Extension link : [Extension](https://chromewebstore.google.com/detail/teneo-community-node/emcclcoaglgcpoognfiggmhnhgabppkm)
+Dashboard Link : [Dashboard](https://dashboard.teneo.pro/dashboard)
 
 My reff code if you want to use :) : 
 ```bash
-03WkM
+ldepa
 ```

@@ -24,6 +24,7 @@ let messages = [];
 let userIds = [];
 let browserIds = [];
 let proxies = [];
+let accessTokens = [];
 
 function loadProxies() {
   try {
@@ -42,9 +43,6 @@ function normalizeProxyUrl(proxy) {
 }
 
 const enableLogging = false;
-
-const authorization = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlra25uZ3JneHV4Z2pocGxicGV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU0MzgxNTAsImV4cCI6MjA0MTAxNDE1MH0.DRAvf8nH1ojnJBc3rD_Nw6t1AV8X_g6gmY_HByG2Mag";
-const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlra25uZ3JneHV4Z2pocGxicGV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU0MzgxNTAsImV4cCI6MjA0MTAxNDE1MH0.DRAvf8nH1ojnJBc3rD_Nw6t1AV8X_g6gmY_HByG2Mag";
 
 function generateBrowserId(index) {
   return `browserId-${index}-${Math.random().toString(36).substring(2, 15)}`;
@@ -86,6 +84,7 @@ function displayAccountData(index) {
   }
   console.log(chalk.cyan(`_____________________________________________`));
 }
+
 function logAllAccounts() {
   console.clear();
   displayHeader();
@@ -102,7 +101,7 @@ async function connectWebSocket(index) {
   if (sockets[index]) return;
   const version = "v0.2";
   const url = "wss://secure.ws.teneo.pro";
-  const wsUrl = `${url}/websocket?userId=${encodeURIComponent(userIds[index])}&version=${encodeURIComponent(version)}&browserId=${encodeURIComponent(browserIds[index])}`;
+  const wsUrl = `${url}/websocket?accessToken=${encodeURIComponent(accessTokens[index])}&version=${encodeURIComponent(version)}`;
 
   const proxy = proxies[index % proxies.length];
   const agent = useProxy && proxy ? new HttpsProxyAgent(normalizeProxyUrl(proxy)) : null;
@@ -153,7 +152,7 @@ async function connectWebSocket(index) {
 async function reconnectWebSocket(index) {
   const version = "v0.2";
   const url = "wss://secure.ws.teneo.pro";
-  const wsUrl = `${url}/websocket?userId=${encodeURIComponent(userIds[index])}&version=${encodeURIComponent(version)}&browserId=${encodeURIComponent(browserIds[index])}`;
+  const wsUrl = `${url}/websocket?accessToken=${encodeURIComponent(accessTokens[index])}&version=${encodeURIComponent(version)}`;
 
   const proxy = proxies[index % proxies.length];
   const agent = useProxy && proxy ? new HttpsProxyAgent(normalizeProxyUrl(proxy)) : null;
@@ -206,6 +205,7 @@ async function reconnectWebSocket(index) {
     logToFile(`WebSocket error for Account ${index + 1}: ${error}`);
   };
 }
+
 function startCountdownAndPoints(index) {
   clearInterval(countdownIntervals[index]);
   updateCountdownAndPoints(index);
@@ -276,12 +276,12 @@ function startPinging(index) {
     if (sockets[index] && sockets[index].readyState === WebSocket.OPEN) {
       const proxy = proxies[index % proxies.length];
       const agent = useProxy && proxy ? new HttpsProxyAgent(normalizeProxyUrl(proxy)) : null;
-      
+
       sockets[index].send(JSON.stringify({ type: "PING" }), { agent });
       logAllAccounts();
       logToFile(`Ping sent for Account ${index + 1}`);
     }
-  }, 10000);
+  }, 60000); // Send PING every minute
 }
 
 function stopPinging(index) {
@@ -300,7 +300,7 @@ function restartAccountProcess(index) {
 }
 
 async function getUserId(index) {
-  const loginUrl = "https://ikknngrgxuxgjhplbpey.supabase.co/auth/v1/token?grant_type=password";
+  const loginUrl = "https://auth.teneo.pro/api/login";
 
   const proxy = proxies[index % proxies.length];
   const agent = useProxy && proxy ? new HttpsProxyAgent(normalizeProxyUrl(proxy)) : null;
@@ -310,28 +310,23 @@ async function getUserId(index) {
       email: accounts[index].email,
       password: accounts[index].password
     }, {
+      httpsAgent: agent,
       headers: {
-        'Authorization': authorization,
-        'apikey': apikey
-      },
-      httpsAgent: agent
+        'Authorization': `Bearer ${accessTokens[index]}`, // Example header
+        'Content-Type': 'application/json',
+        'authority': 'auth.teneo.pro',
+        'x-api-key': 'OwAG3kib1ivOJG4Y0OCZ8lJETa6ypvsDtGmdhcjA'
+      }
     });
 
-    userIds[index] = response.data.user.id;
+    const { user, access_token } = response.data;
+    userIds[index] = user.id;
+    accessTokens[index] = access_token;
     browserIds[index] = generateBrowserId(index);
     logAllAccounts();
 
-    const profileUrl = `https://ikknngrgxuxgjhplbpey.supabase.co/rest/v1/profiles?select=personal_code&id=eq.${userIds[index]}`;
-    const profileResponse = await axios.get(profileUrl, {
-      headers: {
-        'Authorization': authorization,
-        'apikey': apikey
-      },
-      httpsAgent: agent
-    });
-
-    console.log(`Profile Data for Account ${index + 1}:`, profileResponse.data);
-    logToFile(`Profile Data for Account ${index + 1}: ${JSON.stringify(profileResponse.data)}`);
+    console.log(`User Data for Account ${index + 1}:`, user);
+    logToFile(`User Data for Account ${index + 1}: ${JSON.stringify(user)}`);
     startCountdownAndPoints(index);
     await connectWebSocket(index);
   } catch (error) {
@@ -352,5 +347,6 @@ for (let i = 0; i < accounts.length; i++) {
   messages[i] = '';
   userIds[i] = null;
   browserIds[i] = null;
+  accessTokens[i] = null;
   getUserId(i);
 }

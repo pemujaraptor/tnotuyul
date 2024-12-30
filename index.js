@@ -33,8 +33,11 @@ function loadAccounts() {
     const data = fs.readFileSync('account.txt', 'utf8');
     accounts = data.split('\n').map(line => {
       const [email, password] = line.split(',');
-      return { email: email.trim(), password: password.trim() };
-    }).filter(account => account.email && account.password);
+      if (email && password) {
+        return { email: email.trim(), password: password.trim() };
+      }
+      return null;
+    }).filter(account => account !== null);
   } catch (err) {
     console.error('Failed to load accounts:', err);
   }

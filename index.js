@@ -2,15 +2,10 @@ const axios = require('axios');
 const chalk = require('chalk');
 const WebSocket = require('ws');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const readline = require('readline');
 const fs = require('fs');
+const keypress = require('keypress');
 const accounts = require('./account.js');
 const { useProxy } = require('./config.js');
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
 
 let sockets = [];
 let pingIntervals = [];
@@ -25,6 +20,8 @@ let userIds = [];
 let browserIds = [];
 let proxies = [];
 let accessTokens = [];
+
+let currentAccountIndex = 0;
 
 function loadProxies() {
   try {
@@ -59,16 +56,29 @@ function logToFile(message) {
 }
 
 function displayHeader() {
+  const width = process.stdout.columns;
+  const headerLines = [
+    " ============================================",
+    "|                 Teneo Bot                  |",
+    "|         github.com/recitativonika          |",
+    " ============================================"
+  ];
+
   console.log("");
-  console.log(chalk.yellow(" ============================================"));
-  console.log(chalk.yellow("|                 Teneo Bot                  |"));
-  console.log(chalk.yellow("|         github.com/recitativonika          |"));
-  console.log(chalk.yellow(" ============================================"));
+  headerLines.forEach(line => {
+    const padding = Math.max(0, Math.floor((width - line.length) / 2));
+    console.log(chalk.green(' '.repeat(padding) + line));
+  });
   console.log("");
+  const instructions = "Use 'A' to switch to the previous account, 'D' to switch to the next account, 'C' to exit.";
+  const instructionsPadding = Math.max(0, Math.floor((width - instructions.length) / 2));
+  console.log(chalk.cyan(' '.repeat(instructionsPadding) + instructions));
   console.log(chalk.cyan(`_____________________________________________`));
 }
 
 function displayAccountData(index) {
+  console.clear();
+  displayHeader();
   console.log(chalk.cyan(`================= Account ${index + 1} =================`));
   console.log(chalk.whiteBright(`Email: ${accounts[index].email}`));
   console.log(`User ID: ${userIds[index]}`);
@@ -83,18 +93,38 @@ function displayAccountData(index) {
     console.log(chalk.hex('#FFA500')(`Proxy: Not using proxy`));
   }
   console.log(chalk.cyan(`_____________________________________________`));
+  console.log("\nStatus:");
+
+  if (messages[index].startsWith("Error:")) {
+    console.log(chalk.red(`Account ${index + 1}: ${messages[index]}`));
+  } else {
+    console.log(`Account ${index + 1}: Potential Points: ${potentialPoints[index]}, Countdown: ${countdowns[index]}`);
+  }
 }
 
-function logAllAccounts() {
-  console.clear();
-  displayHeader();
-  for (let i = 0; i < accounts.length; i++) {
-    displayAccountData(i);
-  }
-  console.log("\nStatus:");
-  for (let i = 0; i < accounts.length; i++) {
-    console.log(`Account ${i + 1}: Potential Points: ${potentialPoints[i]}, Countdown: ${countdowns[i]}`);
-  }
+function handleUserInput() {
+  keypress(process.stdin);
+
+  process.stdin.on('keypress', (ch, key) => {
+    if (key && key.name === 'a') {
+      currentAccountIndex = (currentAccountIndex - 1 + accounts.length) % accounts.length;
+      console.log(`Switched to account index: ${currentAccountIndex}`);
+      displayAccountData(currentAccountIndex);
+    } else if (key && key.name === 'd') {
+      currentAccountIndex = (currentAccountIndex + 1) % accounts.length;
+      console.log(`Switched to account index: ${currentAccountIndex}`);
+      displayAccountData(currentAccountIndex);
+    } else if (key && key.name === 'c') {
+      console.log('Exiting the script...');
+      process.exit();
+    }
+    if (key && key.ctrl && key.name === 'c') {
+      process.stdin.pause();
+    }
+  });
+
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
 }
 
 async function connectWebSocket(index) {
@@ -124,7 +154,9 @@ async function connectWebSocket(index) {
       pointsToday[index] = data.pointsToday;
       messages[index] = data.message;
 
-      logAllAccounts();
+      if (index === currentAccountIndex) {
+        displayAccountData(index);
+      }
       logToFile(`Account ${index + 1} received data: ${JSON.stringify(data)}`);
     }
 
@@ -179,7 +211,9 @@ async function reconnectWebSocket(index) {
       pointsToday[index] = data.pointsToday;
       messages[index] = data.message;
 
-      logAllAccounts();
+      if (index === currentAccountIndex) {
+        displayAccountData(index);
+      }
       logToFile(`Account ${index + 1} received data: ${JSON.stringify(data)}`);
     }
 
@@ -267,7 +301,9 @@ async function updateCountdownAndPoints(index) {
     lastUpdateds[index].calculatingTime = now;
   }
 
-  logAllAccounts();
+  if (index === currentAccountIndex) {
+    displayAccountData(index);
+  }
   logToFile(`Updated countdown and points for Account ${index + 1}`);
 }
 
@@ -278,7 +314,9 @@ function startPinging(index) {
       const agent = useProxy && proxy ? new HttpsProxyAgent(normalizeProxyUrl(proxy)) : null;
 
       sockets[index].send(JSON.stringify({ type: "PING" }), { agent });
-      logAllAccounts();
+      if (index === currentAccountIndex) {
+        displayAccountData(index);
+      }
       logToFile(`Ping sent for Account ${index + 1}`);
     }
   }, 60000);
@@ -323,15 +361,26 @@ async function getUserId(index) {
     userIds[index] = user.id;
     accessTokens[index] = access_token;
     browserIds[index] = generateBrowserId(index);
-    logAllAccounts();
+    messages[index] = "Connected successfully";
+
+    if (index === currentAccountIndex) {
+      displayAccountData(index);
+    }
 
     console.log(`User Data for Account ${index + 1}:`, user);
     logToFile(`User Data for Account ${index + 1}: ${JSON.stringify(user)}`);
     startCountdownAndPoints(index);
     await connectWebSocket(index);
   } catch (error) {
-    console.error(`Error for Account ${index + 1}:`, error.response ? error.response.data : error.message);
-    logToFile(`Error for Account ${index + 1}: ${error.response ? error.response.data : error.message}`);
+    const errorMessage = error.response ? error.response.data.message : error.message;
+    messages[index] = `Error: ${errorMessage}`;
+
+    if (index === currentAccountIndex) {
+      displayAccountData(index);
+    }
+
+    console.error(`Error for Account ${index + 1}:`, errorMessage);
+    logToFile(`Error for Account ${index + 1}: ${errorMessage}`);
   }
 }
 
@@ -350,3 +399,6 @@ for (let i = 0; i < accounts.length; i++) {
   accessTokens[i] = null;
   getUserId(i);
 }
+
+displayAccountData(currentAccountIndex);
+handleUserInput();

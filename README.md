@@ -1,5 +1,5 @@
 # Teneo Bot
-[Click here for old readme](https://github.com/recitativonika/teneo-bot/blob/main/readme-old.md)
+
 ## Description
 Teneo bot is a simple tool designed to automate the node interaction.
 
@@ -61,6 +61,7 @@ http://username:password@ip:port
 ```bash
 node index.js
 ```
+Use A and D to move/change view to other accounts.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.

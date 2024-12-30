@@ -281,7 +281,7 @@ function startPinging(index) {
       logAllAccounts();
       logToFile(`Ping sent for Account ${index + 1}`);
     }
-  }, 60000); // Send PING every minute
+  }, 60000);
 }
 
 function stopPinging(index) {
@@ -312,7 +312,7 @@ async function getUserId(index) {
     }, {
       httpsAgent: agent,
       headers: {
-        'Authorization': `Bearer ${accessTokens[index]}`, // Example header
+        'Authorization': `Bearer ${accessTokens[index]}`,
         'Content-Type': 'application/json',
         'authority': 'auth.teneo.pro',
         'x-api-key': 'OwAG3kib1ivOJG4Y0OCZ8lJETa6ypvsDtGmdhcjA'

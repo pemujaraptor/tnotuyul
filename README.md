@@ -26,29 +26,13 @@ Teneo bot is a simple tool designed to automate the node interaction.
 
 ## Usage
 
-1. Set the `account.js`, `config.js` and `proxy.txt` before running the script. Below how to setup this fie.
+1. Set the `account.txt` and `proxy.txt (if you want to use proxy)` before running the script. Below how to setup this fie.
 2. Configuration:
-   Modify the `account.js` file to set your account parameters
+   Modify the `account.txt` file to set your account parameters
 ```
-module.exports = [
-  {
-    email: "account1@example.com",
-    password: "password1"
-  },
-  {
-    email: "account2@example.com",
-    password: "password2"
-  },
-  // Add more accounts as needed
-];
-```
- Modify the `config.js` file if you want to use proxy or not, default is false (not use proxy)
-```
-const useProxy = false; // (set true if want to use proxy, false if not)
-
-module.exports = {
-  useProxy
-};
+email1,password1
+email2,password2
+email3,password3
 ```
  Modify and set the `proxy.txt` file if you want to use proxy
 ```
@@ -61,7 +45,7 @@ http://username:password@ip:port
 ```bash
 node index.js
 ```
-Use A and D to move/change view to other accounts.
+Use `A` and `D` to move/change view to other accounts, `C` to stop the script.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.

@@ -3,9 +3,8 @@ const chalk = require('chalk');
 const WebSocket = require('ws');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const fs = require('fs');
+const readline = require('readline');
 const keypress = require('keypress');
-const accounts = require('./account.js');
-const { useProxy } = require('./config.js');
 
 let sockets = [];
 let pingIntervals = [];
@@ -20,13 +19,36 @@ let userIds = [];
 let browserIds = [];
 let proxies = [];
 let accessTokens = [];
-
+let accounts = [];
+let useProxy = false;
 let currentAccountIndex = 0;
 
+function loadAccounts() {
+  if (!fs.existsSync('account.txt')) {
+    console.error('account.txt not found. Please add the file with account data.');
+    process.exit(1);
+  }
+
+  try {
+    const data = fs.readFileSync('account.txt', 'utf8');
+    accounts = data.split('\n').map(line => {
+      const [email, password] = line.split(',');
+      return { email: email.trim(), password: password.trim() };
+    }).filter(account => account.email && account.password);
+  } catch (err) {
+    console.error('Failed to load accounts:', err);
+  }
+}
+
 function loadProxies() {
+  if (!fs.existsSync('proxy.txt')) {
+    console.error('proxy.txt not found. Please add the file with proxy data.');
+    process.exit(1);
+  }
+
   try {
     const data = fs.readFileSync('proxy.txt', 'utf8');
-    proxies = data.split('\n').map(line => line.trim().replace(/,$/, '').replace(/['"]+/g, '')).filter(line => line);
+    proxies = data.split('\n').map(line => line.trim()).filter(line => line);
   } catch (err) {
     console.error('Failed to load proxies:', err);
   }
@@ -39,29 +61,60 @@ function normalizeProxyUrl(proxy) {
   return proxy;
 }
 
-const enableLogging = false;
+function promptUseProxy() {
+  return new Promise((resolve) => {
+    displayHeader();
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.question('Do you want to use a proxy? (y/n): ', (answer) => {
+      useProxy = answer.toLowerCase() === 'y';
+      rl.close();
+      resolve();
+    });
+  });
+}
+
+async function initialize() {
+  loadAccounts();
+  loadProxies();
+  await promptUseProxy();
+
+  if (useProxy && proxies.length < accounts.length) {
+    console.error('Not enough proxies for the number of accounts. Please add more proxies.');
+    process.exit(1);
+  }
+
+  for (let i = 0; i < accounts.length; i++) {
+    potentialPoints[i] = 0;
+    countdowns[i] = "Calculating...";
+    pointsTotals[i] = 0;
+    pointsToday[i] = 0;
+    lastUpdateds[i] = null;
+    messages[i] = '';
+    userIds[i] = null;
+    browserIds[i] = null;
+    accessTokens[i] = null;
+    getUserId(i);
+  }
+
+  displayAccountData(currentAccountIndex);
+  handleUserInput();
+}
 
 function generateBrowserId(index) {
   return `browserId-${index}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
-function logToFile(message) {
-  if (enableLogging) {
-    fs.appendFile('error.log', `${new Date().toISOString()} - ${message}\n`, (err) => {
-      if (err) {
-        console.error('Failed to log message:', err);
-      }
-    });
-  }
-}
-
 function displayHeader() {
   const width = process.stdout.columns;
   const headerLines = [
-    " ============================================",
-    "|                 Teneo Bot                  |",
-    "|         github.com/recitativonika          |",
-    " ============================================"
+    "<|============================================|>",
+    "                  Teneo Bot                   ",
+    "          github.com/recitativonika           ",
+    "<|============================================|>"
   ];
 
   console.log("");
@@ -73,26 +126,36 @@ function displayHeader() {
   const instructions = "Use 'A' to switch to the previous account, 'D' to switch to the next account, 'C' to exit.";
   const instructionsPadding = Math.max(0, Math.floor((width - instructions.length) / 2));
   console.log(chalk.cyan(' '.repeat(instructionsPadding) + instructions));
-  console.log(chalk.cyan(`_____________________________________________`));
 }
 
 function displayAccountData(index) {
   console.clear();
   displayHeader();
-  console.log(chalk.cyan(`================= Account ${index + 1} =================`));
+
+  const width = process.stdout.columns;
+  const separatorLine = '_'.repeat(width);
+  const accountHeader = `Account ${index + 1}`;
+  const padding = Math.max(0, Math.floor((width - accountHeader.length) / 2));
+
+  console.log(chalk.cyan(separatorLine));
+  console.log(chalk.cyan(' '.repeat(padding) + chalk.bold(accountHeader)));
+  console.log(chalk.cyan(separatorLine));
+
   console.log(chalk.whiteBright(`Email: ${accounts[index].email}`));
   console.log(`User ID: ${userIds[index]}`);
   console.log(`Browser ID: ${browserIds[index]}`);
   console.log(chalk.green(`Points Total: ${pointsTotals[index]}`));
   console.log(chalk.green(`Points Today: ${pointsToday[index]}`));
   console.log(chalk.whiteBright(`Message: ${messages[index]}`));
+
   const proxy = proxies[index % proxies.length];
   if (useProxy && proxy) {
     console.log(chalk.hex('#FFA500')(`Proxy: ${proxy}`));
   } else {
     console.log(chalk.hex('#FFA500')(`Proxy: Not using proxy`));
   }
-  console.log(chalk.cyan(`_____________________________________________`));
+
+  console.log(chalk.cyan(separatorLine));
   console.log("\nStatus:");
 
   if (messages[index].startsWith("Error:")) {
@@ -141,7 +204,6 @@ async function connectWebSocket(index) {
   sockets[index].onopen = async () => {
     lastUpdateds[index] = new Date().toISOString();
     console.log(`Account ${index + 1} Connected`, lastUpdateds[index]);
-    logToFile(`Account ${index + 1} Connected at ${lastUpdateds[index]}`);
     startPinging(index);
     startCountdownAndPoints(index);
   };
@@ -157,12 +219,10 @@ async function connectWebSocket(index) {
       if (index === currentAccountIndex) {
         displayAccountData(index);
       }
-      logToFile(`Account ${index + 1} received data: ${JSON.stringify(data)}`);
     }
 
     if (data.message === "Pulse from server") {
       console.log(`Pulse from server received for Account ${index + 1}. Start pinging...`);
-      logToFile(`Pulse from server received for Account ${index + 1}`);
       setTimeout(() => {
         startPinging(index);
       }, 10000);
@@ -171,13 +231,11 @@ async function connectWebSocket(index) {
 
   sockets[index].onclose = () => {
     console.log(`Account ${index + 1} Disconnected`);
-    logToFile(`Account ${index + 1} Disconnected`);
     reconnectWebSocket(index);
   };
 
   sockets[index].onerror = (error) => {
     console.error(`WebSocket error for Account ${index + 1}:`, error);
-    logToFile(`WebSocket error for Account ${index + 1}: ${error}`);
   };
 }
 
@@ -198,7 +256,6 @@ async function reconnectWebSocket(index) {
   sockets[index].onopen = async () => {
     lastUpdateds[index] = new Date().toISOString();
     console.log(`Account ${index + 1} Reconnected`, lastUpdateds[index]);
-    logToFile(`Account ${index + 1} Reconnected at ${lastUpdateds[index]}`);
     startPinging(index);
     startCountdownAndPoints(index);
   };
@@ -214,12 +271,10 @@ async function reconnectWebSocket(index) {
       if (index === currentAccountIndex) {
         displayAccountData(index);
       }
-      logToFile(`Account ${index + 1} received data: ${JSON.stringify(data)}`);
     }
 
     if (data.message === "Pulse from server") {
       console.log(`Pulse from server received for Account ${index + 1}. Start pinging...`);
-      logToFile(`Pulse from server received for Account ${index + 1}`);
       setTimeout(() => {
         startPinging(index);
       }, 10000);
@@ -228,7 +283,6 @@ async function reconnectWebSocket(index) {
 
   sockets[index].onclose = () => {
     console.log(`Account ${index + 1} Disconnected again`);
-    logToFile(`Account ${index + 1} Disconnected again`);
     setTimeout(() => {
       reconnectWebSocket(index);
     }, 5000);
@@ -236,7 +290,6 @@ async function reconnectWebSocket(index) {
 
   sockets[index].onerror = (error) => {
     console.error(`WebSocket error for Account ${index + 1}:`, error);
-    logToFile(`WebSocket error for Account ${index + 1}: ${error}`);
   };
 }
 
@@ -260,7 +313,6 @@ async function updateCountdownAndPoints(index) {
 
     if (calculatingDuration > restartThreshold) {
       reconnectWebSocket(index);
-      logToFile(`Account ${index + 1} reconnect due to prolonged calculation`);
       return;
     }
   }
@@ -304,7 +356,6 @@ async function updateCountdownAndPoints(index) {
   if (index === currentAccountIndex) {
     displayAccountData(index);
   }
-  logToFile(`Updated countdown and points for Account ${index + 1}`);
 }
 
 function startPinging(index) {
@@ -317,7 +368,6 @@ function startPinging(index) {
       if (index === currentAccountIndex) {
         displayAccountData(index);
       }
-      logToFile(`Ping sent for Account ${index + 1}`);
     }
   }, 60000);
 }
@@ -326,7 +376,6 @@ function stopPinging(index) {
   if (pingIntervals[index]) {
     clearInterval(pingIntervals[index]);
     pingIntervals[index] = null;
-    logToFile(`Stopped pinging for Account ${index + 1}`);
   }
 }
 
@@ -334,7 +383,6 @@ function restartAccountProcess(index) {
   disconnectWebSocket(index);
   connectWebSocket(index);
   console.log(`WebSocket restarted for index: ${index}`);
-  logToFile(`WebSocket restarted for index: ${index}`);
 }
 
 async function getUserId(index) {
@@ -368,7 +416,6 @@ async function getUserId(index) {
     }
 
     console.log(`User Data for Account ${index + 1}:`, user);
-    logToFile(`User Data for Account ${index + 1}: ${JSON.stringify(user)}`);
     startCountdownAndPoints(index);
     await connectWebSocket(index);
   } catch (error) {
@@ -380,25 +427,7 @@ async function getUserId(index) {
     }
 
     console.error(`Error for Account ${index + 1}:`, errorMessage);
-    logToFile(`Error for Account ${index + 1}: ${errorMessage}`);
   }
 }
 
-displayHeader();
-loadProxies();
-
-for (let i = 0; i < accounts.length; i++) {
-  potentialPoints[i] = 0;
-  countdowns[i] = "Calculating...";
-  pointsTotals[i] = 0;
-  pointsToday[i] = 0;
-  lastUpdateds[i] = null;
-  messages[i] = '';
-  userIds[i] = null;
-  browserIds[i] = null;
-  accessTokens[i] = null;
-  getUserId(i);
-}
-
-displayAccountData(currentAccountIndex);
-handleUserInput();
+initialize();

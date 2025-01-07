@@ -5,7 +5,7 @@ Teneo bot is a simple tool designed to automate the node interaction.
 - **Automated node interaction**
 
 ## Prerequisites
-- [Node.js](https://nodejs.org/) (version 12 or higher)
+- [Node.js](https://nodejs.org/) (version 14 or higher)
 
 ## Installation
 

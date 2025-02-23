@@ -32,6 +32,14 @@ email1,password1
 email2,password2
 email3,password3
 ```
+   Use bearer to run node and put your `bearer` token to `bearer.txt`
+```
+bearer1
+bearer2
+```
+ to get the bearer, login to [Teneo dashboard](https://dashboard.teneo.pro/dashboard). Open `inspect element` (right click), open `application` page and open the `local storage`. You will see your bearer token.
+![Screenshot 2025-02-22 213640](https://github.com/user-attachments/assets/6094cb26-1d93-4bd4-a563-5c8d02f7c865)
+
  Modify and set the `proxy.txt` file if you want to use proxy
 ```
 ip:port

@@ -23,6 +23,7 @@ let accounts = [];
 let useProxy = false;
 let enableAutoRetry = false;
 let currentAccountIndex = 0;
+let useBearerTokens = false;
 
 function loadAccounts() {
   if (!fs.existsSync('account.txt')) {
@@ -41,6 +42,24 @@ function loadAccounts() {
     }).filter(account => account !== null);
   } catch (err) {
     console.error('Failed to load accounts:', err);
+  }
+}
+
+function loadBearerTokens() {
+  if (!fs.existsSync('bearer.txt')) {
+    console.error('bearer.txt not found. Please add the file with bearer tokens.');
+    process.exit(1);
+  }
+
+  try {
+    const data = fs.readFileSync('bearer.txt', 'utf8');
+    accessTokens = data.split('\n').map(token => token.trim()).filter(token => token);
+    if (accessTokens.length === 0) {
+      console.error('No valid bearer tokens found in bearer.txt.');
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error('Failed to load bearer tokens:', err);
   }
 }
 
@@ -65,9 +84,23 @@ function normalizeProxyUrl(proxy) {
   return proxy;
 }
 
+function promptUseBearerTokens() {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.question('Do you want to use bearer tokens instead of email/password? (y/n): ', (answer) => {
+      useBearerTokens = answer.toLowerCase() === 'y';
+      rl.close();
+      resolve();
+    });
+  });
+}
+
 function promptUseProxy() {
   return new Promise((resolve) => {
-    displayHeader();
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -97,17 +130,24 @@ function promptEnableAutoRetry() {
 }
 
 async function initialize() {
-  loadAccounts();
+  displayHeader();
+  await promptUseBearerTokens();
+  if (useBearerTokens) {
+    loadBearerTokens();
+  } else {
+    loadAccounts();
+  }
   loadProxies();
   await promptUseProxy();
   await promptEnableAutoRetry();
 
-  if (useProxy && proxies.length < accounts.length) {
+  if (useProxy && proxies.length < (useBearerTokens ? accessTokens.length : accounts.length)) {
     console.error('Not enough proxies for the number of accounts. Please add more proxies.');
     process.exit(1);
   }
 
-  for (let i = 0; i < accounts.length; i++) {
+  const length = useBearerTokens ? accessTokens.length : accounts.length;
+  for (let i = 0; i < length; i++) {
     potentialPoints[i] = 0;
     countdowns[i] = "Calculating...";
     pointsTotals[i] = 0;
@@ -116,8 +156,12 @@ async function initialize() {
     messages[i] = '';
     userIds[i] = null;
     browserIds[i] = null;
-    accessTokens[i] = null;
-    getUserId(i);
+    if (!useBearerTokens) {
+      accessTokens[i] = null;
+      getUserId(i);
+    } else {
+      connectWebSocket(i);
+    }
   }
 
   displayAccountData(currentAccountIndex);
@@ -149,52 +193,54 @@ function displayHeader() {
 }
 
 function displayAccountData(index) {
-  console.clear();
-  displayHeader();
+    console.clear();
+    displayHeader();
 
-  const width = process.stdout.columns;
-  const separatorLine = '_'.repeat(width);
-  const accountHeader = `Account ${index + 1}`;
-  const padding = Math.max(0, Math.floor((width - accountHeader.length) / 2));
+    const width = process.stdout.columns;
+    const separatorLine = '_'.repeat(width);
+    const accountHeader = `Account ${index + 1}`;
+    const padding = Math.max(0, Math.floor((width - accountHeader.length) / 2));
 
-  console.log(chalk.cyan(separatorLine));
-  console.log(chalk.cyan(' '.repeat(padding) + chalk.bold(accountHeader)));
-  console.log(chalk.cyan(separatorLine));
+    console.log(chalk.cyan(separatorLine));
+    console.log(chalk.cyan(' '.repeat(padding) + chalk.bold(accountHeader)));
+    console.log(chalk.cyan(separatorLine));
 
-  console.log(chalk.whiteBright(`Email: ${accounts[index].email}`));
-  console.log(`User ID: ${userIds[index]}`);
-  console.log(`Browser ID: ${browserIds[index]}`);
-  console.log(chalk.green(`Points Total: ${pointsTotals[index]}`));
-  console.log(chalk.green(`Points Today: ${pointsToday[index]}`));
-  console.log(chalk.whiteBright(`Message: ${messages[index]}`));
+    if (!useBearerTokens) {
+      console.log(chalk.whiteBright(`Email: ${accounts[index].email}`));
+      console.log(`User ID: ${userIds[index]}`);
+      console.log(`Browser ID: ${browserIds[index]}`);
+    }
+    console.log(chalk.green(`Points Total: ${pointsTotals[index]}`));
+    console.log(chalk.green(`Points Today: ${pointsToday[index]}`));
+    console.log(chalk.whiteBright(`Message: ${messages[index]}`));
 
-  const proxy = proxies[index % proxies.length];
-  if (useProxy && proxy) {
-    console.log(chalk.hex('#FFA500')(`Proxy: ${proxy}`));
-  } else {
-    console.log(chalk.hex('#FFA500')(`Proxy: Not using proxy`));
+    const proxy = proxies[index % proxies.length];
+    if (useProxy && proxy) {
+      console.log(chalk.hex('#FFA500')(`Proxy: ${proxy}`));
+    } else {
+      console.log(chalk.hex('#FFA500')(`Proxy: Not using proxy`));
+    }
+
+    console.log(chalk.cyan(separatorLine));
+    console.log("\nStatus:");
+
+    if (messages[index].startsWith("Error:")) {
+      console.log(chalk.red(`Account ${index + 1}: ${messages[index]}`));
+    } else {
+      console.log(`Account ${index + 1}: Potential Points: ${potentialPoints[index]}, Countdown: ${countdowns[index]}`);
+    }
   }
-
-  console.log(chalk.cyan(separatorLine));
-  console.log("\nStatus:");
-
-  if (messages[index].startsWith("Error:")) {
-    console.log(chalk.red(`Account ${index + 1}: ${messages[index]}`));
-  } else {
-    console.log(`Account ${index + 1}: Potential Points: ${potentialPoints[index]}, Countdown: ${countdowns[index]}`);
-  }
-}
 
 function handleUserInput() {
   keypress(process.stdin);
 
   process.stdin.on('keypress', (ch, key) => {
     if (key && key.name === 'a') {
-      currentAccountIndex = (currentAccountIndex - 1 + accounts.length) % accounts.length;
+      currentAccountIndex = (currentAccountIndex - 1 + (useBearerTokens ? accessTokens.length : accounts.length)) % (useBearerTokens ? accessTokens.length : accounts.length);
       console.log(`Switched to account index: ${currentAccountIndex}`);
       displayAccountData(currentAccountIndex);
     } else if (key && key.name === 'd') {
-      currentAccountIndex = (currentAccountIndex + 1) % accounts.length;
+      currentAccountIndex = (currentAccountIndex + 1) % (useBearerTokens ? accessTokens.length : accounts.length);
       console.log(`Switched to account index: ${currentAccountIndex}`);
       displayAccountData(currentAccountIndex);
     } else if (key && key.name === 'c') {

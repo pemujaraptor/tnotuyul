@@ -32,7 +32,7 @@ email1,password1
 email2,password2
 email3,password3
 ```
-   Use bearer to run node and put your `bearer` token to `bearer.txt`
+   To Use bearer to run node and put your `bearer` token to `bearer.txt`
 ```
 bearer1
 bearer2
